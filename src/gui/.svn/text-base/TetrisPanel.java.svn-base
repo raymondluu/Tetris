@@ -1,0 +1,355 @@
+/*
+ * Raymond Luu
+ * 
+ * TCSS 305 - Winter 2012
+ * Tetris Project - part 3
+ */
+package gui;
+
+import board.Board;
+
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Shape;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.awt.geom.Rectangle2D;
+import java.awt.geom.RoundRectangle2D;
+import java.util.Observable;
+import java.util.Observer;
+
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.Timer;
+
+/**
+ * Tetris Panel object class.
+ * 
+ * @author Raymond Luu
+ * @version February 28, 2012
+ */
+public class TetrisPanel extends JPanel implements Observer
+{
+  
+  /**
+   * Block dimensions 25x25. //Also used for board height.
+   */
+  private static final int BLOCK_DIMENSION = 25;
+  
+  /**
+   * Board Dimensions.
+   */
+  private static final Dimension BOARD_SIZE = new Dimension(250, 625);
+  
+  /**
+   * Delay of timer moving piece down.
+   */
+  private static final int INITIAL_DELAY = 1000;
+  
+  /**
+   * Minimum delay.
+   */
+  private static final int MIN_DELAY = 30;
+  
+  /**
+   * Incrementing delay.
+   */
+  private static final int INCREMENT_DELAY = 112;
+  
+  /**
+   * Incrementing delay after level 7.
+   */
+  private static final int INCREMENT_DELAY_AFTER_LEVEL_EIGHT = 7;
+  
+  /**
+   * Max level.
+   */
+  private static final int MAX_LEVEL = 10;
+  
+  /**
+   * Level where incrementing changes.
+   */
+  private static final int CHANGE_INCREMENT_LEVEL = 8;
+  
+  /**
+   * Constant for top threshold.
+   */
+  private static final int TOP_THRESHOLD = 5;
+  
+  /**
+   * Covers top 5 lines of board.
+   */
+  private static final Rectangle2D TOP_COVER = new Rectangle2D.Double(0, 0, 250, 125);
+  
+  /**
+   * The board.
+   */
+  private Board my_board;
+  
+  /**
+   * The pieces on the board.
+   */
+  private int[][] my_board_pieces;
+  
+  /**
+   * Tetris timer.
+   */
+  private final Timer my_step_timer;
+  
+  /**
+   * Key listener.
+   */
+  private final KeyAdapter my_key_adapter;
+  
+  /**
+   * Current delay.
+   */
+  private int my_current_delay;
+  
+  /**
+   * Constructs the Tetris Panel.
+   * 
+   * @param the_board tetris board.
+   */
+  public TetrisPanel(final Board the_board)
+  {
+    super();
+    my_board = the_board;
+    my_board_pieces = new int[0][0];
+    my_step_timer = new Timer(INITIAL_DELAY, new TetrisStepListener());
+    my_key_adapter = new TetrisKeyListener();
+    my_current_delay = INITIAL_DELAY;
+
+    setPreferredSize(BOARD_SIZE);
+    setBackground(Color.white);
+    
+    tetrisPanelHelper();
+    setFocusable(true);
+  }
+  
+  /**
+   * Private helper method to add observer.
+   */
+  private void tetrisPanelHelper()
+  {
+    addKeyListener(my_key_adapter);
+    my_board.addObserver(this);
+  }
+  
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void paintComponent(final Graphics the_graphics)
+  {
+    super.paintComponent(the_graphics);
+    final Graphics2D g2d = (Graphics2D) the_graphics;
+    
+    g2d.setPaint(Color.GREEN);
+    g2d.fill(TOP_COVER);
+    for (int i = TOP_THRESHOLD; i < my_board_pieces.length; i++)
+    {
+      for (int j = 0; j < my_board_pieces[i].length; j++)
+      {
+        if (my_board_pieces[i][j] == 1)
+        {
+          final Shape tetris_block = new RoundRectangle2D.Double(j * BLOCK_DIMENSION,
+                                                                 i * BLOCK_DIMENSION,
+                                                                 BLOCK_DIMENSION,
+                                                                 BLOCK_DIMENSION,
+                                                                 10,
+                                                                 10);
+          g2d.setPaint(Color.BLUE);
+          g2d.fill(tetris_block);
+          g2d.setPaint(Color.BLACK);
+          g2d.draw(tetris_block);
+        }
+        else if (my_board_pieces[i][j] == 2)
+        {
+          final Shape tetris_block = new RoundRectangle2D.Double(j * BLOCK_DIMENSION,
+                                                                 i * BLOCK_DIMENSION,
+                                                                 BLOCK_DIMENSION,
+                                                                 BLOCK_DIMENSION,
+                                                                 10,
+                                                                 10);
+          g2d.setPaint(Color.GRAY);
+          g2d.fill(tetris_block);
+          g2d.setPaint(Color.BLACK);
+          g2d.draw(tetris_block);
+        }
+      }
+    }
+  }
+  
+  /**
+   * Starts Tetris timer.
+   */
+  public void start()
+  {
+    my_step_timer.start();
+  }
+  
+  /**
+   * Stops Tetris timer.
+   */
+  public void stop()
+  {
+    my_step_timer.stop();
+  }
+  
+  /**
+   * Add the key listener to panel.
+   */
+  public void addKeyListener()
+  {
+    addKeyListener(my_key_adapter);
+  }
+  
+  /**
+   * Remove the key listener from panel.
+   */
+  public void removeKeyListener()
+  {
+    removeKeyListener(my_key_adapter);
+  }
+  
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void update(final Observable the_obj, final Object the_arg)
+  {
+    if (the_arg.getClass() == int[][].class)
+    {
+      final int[][] board = (int[][]) the_arg;
+      if (board.length == BLOCK_DIMENSION)
+      {
+        my_board_pieces = board;
+      }
+    }
+    repaint();
+  }
+  
+  /**
+   * Creates new game.
+   */
+  public void newGame()
+  {
+    my_board = new Board();
+    removeKeyListener(my_key_adapter);
+    tetrisPanelHelper();
+    my_current_delay = INITIAL_DELAY;
+    my_step_timer.setDelay(my_current_delay);
+    start();
+  }
+  
+  /**
+   * Change delay according to level.
+   * 
+   * @param the_current_level current level.
+   */
+  public void setTimerDelay(final int the_current_level)
+  {
+    if (my_current_delay >= MIN_DELAY && the_current_level <= MAX_LEVEL)
+    {
+      // current level is 8 so the delay is 104 then increment smaller.
+      if (the_current_level > CHANGE_INCREMENT_LEVEL)
+      {
+        my_current_delay = INCREMENT_DELAY_AFTER_LEVEL_EIGHT * the_current_level;
+      }
+      // incrementing below level 8 to reach 104 delay.
+      else
+      {
+        my_current_delay = INITIAL_DELAY - INCREMENT_DELAY * the_current_level;
+      }
+      my_step_timer.setDelay(my_current_delay);
+    }
+  }
+  
+  /**
+   * Gets the board for next piece panel.
+   * 
+   * @return the current board.
+   */
+  public Board getBoard()
+  {
+    return my_board;
+  }
+  
+  // Inner classes
+  
+  /**
+   * Listens to KeyEvents on tetris panel.
+   * 
+   * @author Raymond Luu
+   * @version March 1, 2012
+   */
+  private class TetrisKeyListener extends KeyAdapter
+  {
+    
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void keyPressed(final KeyEvent the_event)
+    {
+      if (the_event.getKeyCode() == KeyEvent.VK_LEFT)
+      {
+        my_board.moveLeft();
+      }
+      else if (the_event.getKeyCode() == KeyEvent.VK_RIGHT)
+      {
+        my_board.moveRight();
+      }
+      else if (the_event.getKeyCode() == KeyEvent.VK_DOWN)
+      {
+        my_board.moveDown();
+      }
+      else if (the_event.getKeyCode() == KeyEvent.VK_UP)
+      {
+        my_board.rotate();
+      }
+      else if (the_event.getKeyCode() == KeyEvent.VK_SPACE)
+      {
+        my_board.hardDrop();
+      }
+    }
+    
+  }
+  
+  /**
+   * Moves pieces down each step.
+   * 
+   * @author Raymond Luu
+   * @version March 2, 2012
+   */
+  private class TetrisStepListener implements ActionListener
+  {
+    
+    /**
+     * Moves the piece down a step.
+     * 
+     * @param the_event e
+     */
+    public void actionPerformed(final ActionEvent the_event)
+    {
+      if (my_board.gameOver())
+      {
+        JOptionPane.showMessageDialog(null,
+                                      "You Lost",
+                                      "Game Over!",
+                                      JOptionPane.WARNING_MESSAGE);
+        stop();
+        removeKeyListener();
+      }
+      else
+      {
+        my_board.step();
+      }
+    }
+  }
+}
